@@ -33,3 +33,20 @@ def test_format_epistemic_html_escapes_epigraphic_brackets_and_formats_markdown(
     assert "**coastal_inscriptions.txt**" not in rendered
     # Citations must be styled
     assert '<span class="citation-badge">[Card 1]</span>' in rendered
+
+
+def test_build_inquiry_report_markdown():
+    from src.app import build_inquiry_report_markdown
+    from src.synthesize import synthesize_epistemic_response
+    from tests.test_synthesize import create_test_retrieval_result
+
+    ret = create_test_retrieval_result()
+    synth = synthesize_epistemic_response(query=ret.query, retrieval_result=ret, api_key=None)
+    report_md = build_inquiry_report_markdown(retrieval_result=ret, synthesis_result=synth)
+
+    assert "# Corpus Inquiry Lab — Epistemic Inquiry Report" in report_md
+    assert "## 1. THE ANSWER" in report_md
+    assert "## 2. WHAT THE CORPUS CANNOT ESTABLISH" in report_md
+    assert "## 3. EVIDENCE" in report_md
+    assert "[Card 1]" in report_md
+    assert "Emporion" in report_md

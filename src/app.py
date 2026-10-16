@@ -15,6 +15,7 @@ Matches the exact dark midnight blue theme, layout, and visual identity from the
 from __future__ import annotations
 
 import html
+import json
 import os
 import re
 import sys
@@ -40,6 +41,7 @@ from src.ingest import (
     ingest_corpus_directory,
     list_prepared_corpora,
     purge_session_uploads,
+    sanitize_id,
 )
 from src.lexical import DOCUMENTED_STOPWORDS
 from src.retrieve import CoordinatedRetrievalResult, execute_dual_retrieval
@@ -73,6 +75,114 @@ def format_epistemic_html(text: str) -> str:
 def compact_html(raw_html: str) -> str:
     """Remove leading indentation and blank lines so CommonMark never treats HTML as a <pre><code> block."""
     return "\n".join(line.strip() for line in raw_html.splitlines() if line.strip())
+
+
+def build_inquiry_report_markdown(
+    retrieval_result: CoordinatedRetrievalResult,
+    synthesis_result: EpistemicSynthesis,
+    manifest: CorpusManifest | None = None,
+) -> str:
+    """Generate a structured, downloadable Markdown report of the full epistemic inquiry."""
+    corpus_label = (
+        f"{manifest.corpus_name} (`{retrieval_result.corpus_id}`)"
+        if manifest
+        else f"`{retrieval_result.corpus_id}`"
+    )
+    doc_info = (
+        f"{len(manifest.documents)} document(s), {manifest.total_chunks} chunk(s)"
+        if manifest
+        else f"{len(retrieval_result.semantic_results)} retrieved card(s)"
+    )
+
+    audit = synthesis_result.citation_audit
+    if audit.all_citations_valid:
+        cited = ", ".join(f"[Card {c}]" for c in audit.cited_cards) if audit.cited_cards else "None cited"
+        audit_line = f"Passed ({cited})"
+    else:
+        invalid = ", ".join(f"[Card {c}]" for c in audit.invalid_cards)
+        audit_line = f"Warning — Unverified citations detected: {invalid}"
+
+    lines: list[str] = [
+        "# Corpus Inquiry Lab — Epistemic Inquiry Report",
+        "",
+        f"- **Inquiry Question:** {synthesis_result.query}",
+        f"- **Active Corpus:** {corpus_label}",
+        f"- **Corpus Scope:** {doc_info}",
+        f"- **Synthesis Engine:** {synthesis_result.model_name}",
+        f"- **Citation Audit:** {audit_line}",
+        f"- **Generated At (UTC):** {synthesis_result.timestamp}",
+        "",
+        "---",
+        "",
+        "## 1. THE ANSWER",
+        "",
+        "### Directly Supported Findings",
+        synthesis_result.direct_claims or "_No directly attributed claims recorded._",
+        "",
+        "### Derived Interpretation / Inferences",
+        synthesis_result.inferred_connections or "_No derived inferences recorded._",
+        "",
+        "---",
+        "",
+        "## 2. WHAT THE CORPUS CANNOT ESTABLISH",
+        "",
+        "### Source Tensions / Competing Accounts",
+        synthesis_result.divergent_perspectives or "_No conflicting evidence was observed among the retrieved cards._",
+        "",
+        "### Evidentiary Boundaries & Unevidenced Aspects",
+        synthesis_result.epistemic_limits or "_No additional epistemic limitations noted._",
+        "",
+    ]
+
+    lex = retrieval_result.lexical_report
+    misses = [t for t, r in lex.term_results.items() if not r.present_in_corpus]
+    if misses:
+        lines.append("### Deterministic Search Limitations (Lexical Misses)")
+        for m in misses:
+            lines.append(f"- **'{m}'**: {lex.term_results[m].epistemic_statement}")
+        lines.append(f"\n> _{lex.methodological_notice}_")
+        lines.append("")
+
+    lines.extend([
+        "---",
+        "",
+        "## 3. EVIDENCE",
+        "",
+        "### Retrieved Semantic Evidence Cards",
+        "",
+    ])
+
+    if not retrieval_result.semantic_results:
+        lines.append("_No semantic evidence cards were retrieved for this query._")
+        lines.append("")
+    else:
+        for res in retrieval_result.semantic_results:
+            c = res.chunk
+            lines.extend([
+                f"#### [Card {res.rank}] {c.doc_title} (Page {c.page_number})",
+                f"- **Chunk ID:** `{c.chunk_id}` | **Page Offset:** chars {c.char_start}–{c.char_end}",
+                f"- **Cosine Proximity Metric:** `{res.similarity_score:.4f}` _(mathematical vector proximity, not confidence)_",
+                "",
+                f"> \"{c.text}\"",
+                "",
+            ])
+
+    present_terms = [r for r in lex.term_results.values() if r.present_in_corpus]
+    lines.append("### Deterministic Lexical Concordance (Exact Hits)")
+    lines.append("")
+    if not present_terms:
+        lines.append("_No exact lexical matches found for the extracted query terms._")
+    else:
+        for tr in present_terms:
+            lines.append(
+                f"- **'{tr.term}'**: {tr.total_occurrences} occurrence(s) across {tr.documents_count} document(s)"
+            )
+            for match in tr.matches[:3]:
+                lines.append(
+                    f"  - _{match.doc_title} (p. {match.page_number})_: \"{match.snippet}\""
+                )
+    lines.append("")
+    return "\n".join(lines)
 
 
 # Set page config with dark theme preference
@@ -225,17 +335,19 @@ st.markdown(
         margin-top: 0.6rem;
     }
 
-    /* Secondary Buttons (Reset experiment) */
-    div[data-testid="stButton"] > button[kind="secondary"] {
+    /* Secondary & Download Buttons */
+    div[data-testid="stButton"] > button[kind="secondary"],
+    div[data-testid="stDownloadButton"] > button {
         background-color: #1e293b !important;
         color: #e2e8f0 !important;
         border: 1px solid rgba(56, 189, 248, 0.3) !important;
         border-radius: 8px !important;
-        font-size: 0.88rem !important;
+        font-size: 0.86rem !important;
         font-weight: 600 !important;
         padding: 0.45rem 0.9rem !important;
     }
-    div[data-testid="stButton"] > button[kind="secondary"]:hover {
+    div[data-testid="stButton"] > button[kind="secondary"]:hover,
+    div[data-testid="stDownloadButton"] > button:hover {
         background-color: #334155 !important;
         border-color: #38bdf8 !important;
         color: #ffffff !important;
@@ -624,6 +736,42 @@ with st.container():
 # ---------------------------------------------------------------------------
 ret_res: CoordinatedRetrievalResult | None = st.session_state.retrieval_result
 synth_res: EpistemicSynthesis | None = st.session_state.synthesis_result
+
+# Export / Download Report Bar when an inquiry result is available
+if synth_res and ret_res:
+    report_md = build_inquiry_report_markdown(
+        retrieval_result=ret_res,
+        synthesis_result=synth_res,
+        manifest=st.session_state.active_manifest,
+    )
+    report_json = json.dumps(
+        {
+            "corpus": st.session_state.active_manifest.to_dict() if st.session_state.active_manifest else {"corpus_id": ret_res.corpus_id},
+            "retrieval": ret_res.to_dict(),
+            "synthesis": synth_res.to_dict(),
+        },
+        indent=2,
+    )
+    slug = sanitize_id(synth_res.query[:40]) or "inquiry"
+    dl_spacer, dl_col_md, dl_col_json = st.columns([6.4, 2.8, 2.8])
+    with dl_col_md:
+        st.download_button(
+            label="📥 Download Report (.md)",
+            data=report_md,
+            file_name=f"inquiry_report_{slug}.md",
+            mime="text/markdown",
+            use_container_width=True,
+            help="Download the full structured epistemic report in Markdown format.",
+        )
+    with dl_col_json:
+        st.download_button(
+            label="📊 Download Raw Data (.json)",
+            data=report_json,
+            file_name=f"inquiry_data_{slug}.json",
+            mime="application/json",
+            use_container_width=True,
+            help="Download all retrieval metrics, provenance coordinates, and synthesis output as JSON.",
+        )
 
 col_ans, col_evid, col_limits = st.columns(3)
 
