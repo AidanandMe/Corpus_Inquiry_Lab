@@ -17,8 +17,14 @@ from __future__ import annotations
 import html
 import os
 import re
+import sys
 from pathlib import Path
 from typing import Any
+
+# Ensure project root is on sys.path when executed via `streamlit run src/app.py`
+_PROJECT_ROOT = str(Path(__file__).resolve().parent.parent)
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
 
 import streamlit as st
 
