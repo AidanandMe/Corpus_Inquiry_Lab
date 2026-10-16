@@ -70,6 +70,11 @@ def format_epistemic_html(text: str) -> str:
     return escaped.replace("\n", "<br>")
 
 
+def compact_html(raw_html: str) -> str:
+    """Remove leading indentation and blank lines so CommonMark never treats HTML as a <pre><code> block."""
+    return "\n".join(line.strip() for line in raw_html.splitlines() if line.strip())
+
+
 # Set page config with dark theme preference
 st.set_page_config(
     page_title="Corpus Inquiry Lab",
@@ -124,10 +129,18 @@ st.markdown(
     """
     <style>
     /* Dark Theme Core Background & Text */
-    .stApp {
-        background-color: #070d1e;
-        color: #e2e8f0;
+    .stApp, [data-testid="stAppViewContainer"] {
+        background-color: #070d1e !important;
+        color: #e2e8f0 !important;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    /* Make top Streamlit header bar blend into dark background */
+    header[data-testid="stHeader"] {
+        background-color: transparent !important;
+    }
+    .block-container {
+        padding-top: 1.8rem !important;
     }
     
     /* Top Nav Bar */
@@ -212,14 +225,35 @@ st.markdown(
         margin-top: 0.6rem;
     }
 
-    /* Reset Button */
-    div[data-testid="stButton"] > button:has-text("Reset experiment") {
-        background-color: rgba(30, 41, 59, 0.8) !important;
-        color: #cbd5e1 !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    /* Secondary Buttons (Reset experiment) */
+    div[data-testid="stButton"] > button[kind="secondary"] {
+        background-color: #1e293b !important;
+        color: #e2e8f0 !important;
+        border: 1px solid rgba(56, 189, 248, 0.3) !important;
         border-radius: 8px !important;
-        font-size: 0.85rem !important;
-        padding: 0.35rem 0.8rem !important;
+        font-size: 0.88rem !important;
+        font-weight: 600 !important;
+        padding: 0.45rem 0.9rem !important;
+    }
+    div[data-testid="stButton"] > button[kind="secondary"]:hover {
+        background-color: #334155 !important;
+        border-color: #38bdf8 !important;
+        color: #ffffff !important;
+    }
+
+    /* Primary Button (Run Inquiry) */
+    div[data-testid="stButton"] > button[kind="primary"] {
+        background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        border: 1px solid rgba(56, 189, 248, 0.4) !important;
+        border-radius: 8px !important;
+        padding: 0.55rem 1.4rem !important;
+        font-size: 0.96rem !important;
+        box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35) !important;
+    }
+    div[data-testid="stButton"] > button[kind="primary"]:hover {
+        background: linear-gradient(135deg, #0369a1 0%, #075985 100%) !important;
     }
 
     /* Bordered Container for Corpus Bar */
@@ -320,35 +354,47 @@ st.markdown(
         margin-top: 2rem;
     }
 
-    /* Streamlit Input Customization for Dark Look */
-    div[data-baseweb="input"] {
-        background-color: rgba(15, 23, 42, 0.85) !important;
-        border-color: rgba(56, 189, 248, 0.25) !important;
-        color: #ffffff !important;
+    /* Streamlit Inputs, Selectboxes, and File Uploader for Dark Look */
+    div[data-baseweb="input"],
+    div[data-baseweb="base-input"] {
+        background-color: #0f172a !important;
+        border-color: rgba(56, 189, 248, 0.3) !important;
+        color: #f8fafc !important;
         border-radius: 8px !important;
     }
-    input {
-        color: #ffffff !important;
+    div[data-baseweb="input"] input {
+        background-color: transparent !important;
+        color: #f8fafc !important;
+        caret-color: #38bdf8 !important;
+    }
+    div[data-baseweb="input"] input::placeholder {
+        color: #64748b !important;
     }
     div[data-baseweb="select"] > div {
-        background-color: rgba(15, 23, 42, 0.85) !important;
-        border-color: rgba(56, 189, 248, 0.25) !important;
-        color: #ffffff !important;
+        background-color: #0f172a !important;
+        border-color: rgba(56, 189, 248, 0.3) !important;
+        color: #f8fafc !important;
         border-radius: 8px !important;
     }
-    /* Primary Run Inquiry Button */
-    div[data-testid="stButton"] > button:has-text("Run Inquiry") {
-        background: #0284c7 !important;
-        color: #ffffff !important;
-        font-weight: 700 !important;
-        border: none !important;
-        border-radius: 8px !important;
-        padding: 0.6rem 1.4rem !important;
-        font-size: 0.98rem !important;
-        box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4) !important;
+    div[data-baseweb="select"] span,
+    div[data-baseweb="select"] div {
+        color: #f8fafc !important;
     }
-    div[data-testid="stButton"] > button:has-text("Run Inquiry"):hover {
-        background: #0369a1 !important;
+    [data-testid="stFileUploaderDropzone"] {
+        background-color: #0f172a !important;
+        border: 1px dashed rgba(56, 189, 248, 0.35) !important;
+        border-radius: 8px !important;
+        color: #cbd5e1 !important;
+    }
+    [data-testid="stFileUploaderDropzone"] button {
+        background-color: #1e293b !important;
+        color: #e2e8f0 !important;
+        border: 1px solid rgba(56, 189, 248, 0.3) !important;
+    }
+    [data-testid="stFileUploaderFile"] {
+        background-color: #1e293b !important;
+        color: #f8fafc !important;
+        border-radius: 6px !important;
     }
     </style>
     """,
@@ -395,7 +441,7 @@ with hero_col1:
     )
 
 with hero_col2:
-    if st.button("🔄 Reset experiment", use_container_width=True, help="Purge active query, uploads, and session memory."):
+    if st.button("🔄 Reset experiment", type="secondary", use_container_width=True, help="Purge active query, uploads, and session memory."):
         reset_workspace()
     st.markdown(
         """
@@ -533,7 +579,7 @@ with st.container():
         )
 
     with col_run:
-        run_clicked = st.button("Run Inquiry →", use_container_width=True)
+        run_clicked = st.button("Run Inquiry →", type="primary", use_container_width=True)
 
     # Clickable suggestions for fast testing
     if st.session_state.active_corpus_id == "sample_archaeological_survey":
@@ -590,33 +636,27 @@ with col_ans:
 
     if not synth_res:
         ans_body_parts.append(
-            """
-            <div style="color: #64748b; font-size: 0.9rem; line-height: 1.6;">
-                The grounded synthesis of your inquiry will appear here, strictly derived from verified source passages.
-            </div>
-            """
+            '<div style="color: #64748b; font-size: 0.9rem; line-height: 1.6;">'
+            "The grounded synthesis of your inquiry will appear here, strictly derived from verified source passages."
+            "</div>"
         )
     else:
         # Directly Attributed Claims
         if synth_res.direct_claims:
             ans_body_parts.append(
-                f"""
-                <div style="color: #f1f5f9; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.2rem;">
-                    <b>Directly Supported Findings:</b><br>
-                    {format_epistemic_html(synth_res.direct_claims)}
-                </div>
-                """
+                '<div style="color: #f1f5f9; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.2rem;">'
+                "<b>Directly Supported Findings:</b><br>"
+                f"{format_epistemic_html(synth_res.direct_claims)}"
+                "</div>"
             )
 
         # Inferred Connections
         if synth_res.inferred_connections:
             ans_body_parts.append(
-                f"""
-                <div style="color: #94a3b8; font-size: 0.88rem; line-height: 1.5; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.8rem; margin-bottom: 1rem;">
-                    <b style="color: #38bdf8;">Derived Interpretation / Inferences:</b><br>
-                    {format_epistemic_html(synth_res.inferred_connections)}
-                </div>
-                """
+                '<div style="color: #94a3b8; font-size: 0.88rem; line-height: 1.5; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.8rem; margin-bottom: 1rem;">'
+                '<b style="color: #38bdf8;">Derived Interpretation / Inferences:</b><br>'
+                f"{format_epistemic_html(synth_res.inferred_connections)}"
+                "</div>"
             )
 
         # Citation Audit & Synthesis Provenance Footer
@@ -637,24 +677,26 @@ with col_ans:
                 f'<span style="color: #f87171; font-weight: 600;">&#9888; Unverified Citations Detected: {html.escape(invalid_str)}</span>'
             )
 
-        ans_footer_html = f"""
-        <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.75rem; margin-top: 1rem; font-size: 0.76rem; line-height: 1.5;">
-            <div>{audit_badge}</div>
-            <div style="color: #64748b;">Synthesis Engine: {html.escape(synth_res.model_name)}</div>
-        </div>
-        """
+        ans_footer_html = (
+            '<div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.75rem; margin-top: 1rem; font-size: 0.76rem; line-height: 1.5;">'
+            f"<div>{audit_badge}</div>"
+            f'<div style="color: #64748b;">Synthesis Engine: {html.escape(synth_res.model_name)}</div>'
+            "</div>"
+        )
 
     st.markdown(
-        f"""
-        <div class="column-panel">
-            <div>
-                <div class="column-header">THE ANSWER</div>
-                <div class="column-divider"></div>
-                {"".join(ans_body_parts)}
+        compact_html(
+            f"""
+            <div class="column-panel">
+                <div>
+                    <div class="column-header">THE ANSWER</div>
+                    <div class="column-divider"></div>
+                    {"".join(ans_body_parts)}
+                </div>
+                {ans_footer_html}
             </div>
-            {ans_footer_html}
-        </div>
-        """,
+            """
+        ),
         unsafe_allow_html=True,
     )
 
@@ -667,29 +709,20 @@ with col_evid:
 
     if not ret_res or (not ret_res.semantic_results and not ret_res.lexical_report.any_present):
         evid_parts.append(
-            """
-            <div style="color: #64748b; font-size: 0.9rem; line-height: 1.6;">
-                Passages retrieved directly from the source texts, with physical page numbers and provenance coordinates, will be displayed here.
-            </div>
-            """
+            '<div style="color: #64748b; font-size: 0.9rem; line-height: 1.6;">'
+            "Passages retrieved directly from the source texts, with physical page numbers and provenance coordinates, will be displayed here."
+            "</div>"
         )
     else:
         for res in ret_res.semantic_results:
             c = res.chunk
+            safe_quote = html.escape(c.text).replace("\n", "<br>")
             evid_parts.append(
-                f"""
-                <div class="evidence-block">
-                    <div class="evidence-meta">
-                        [Card {res.rank}] {html.escape(c.doc_title)} &bull; Page {c.page_number}
-                    </div>
-                    <div class="evidence-quote">
-                        "{html.escape(c.text)}"
-                    </div>
-                    <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.4rem;">
-                        Offset: chars {c.char_start}&ndash;{c.char_end} &bull; Cosine Proximity: {res.similarity_score:.4f}
-                    </div>
-                </div>
-                """
+                '<div class="evidence-block">'
+                f'<div class="evidence-meta">[Card {res.rank}] {html.escape(c.doc_title)} &bull; Page {c.page_number}</div>'
+                f'<div class="evidence-quote">"{safe_quote}"</div>'
+                f'<div style="font-size: 0.75rem; color: #64748b; margin-top: 0.4rem;">Offset: chars {c.char_start}&ndash;{c.char_end} &bull; Cosine Proximity: {res.similarity_score:.4f}</div>'
+                "</div>"
             )
 
         # Positive Deterministic Lexical Concordance Hits
@@ -698,39 +731,39 @@ with col_evid:
         if present_terms:
             lex_items: list[str] = []
             for tr in present_terms:
-                sample_snip = (
-                    f'<div style="color: #94a3b8; font-style: italic; font-size: 0.76rem; margin-top: 0.15rem;">'
-                    f'e.g. ({html.escape(tr.matches[0].doc_title)}, p. {tr.matches[0].page_number}): "{html.escape(tr.matches[0].snippet)}"'
-                    f"</div>"
-                    if tr.matches
-                    else ""
-                )
+                if tr.matches:
+                    safe_snip = html.escape(tr.matches[0].snippet).replace("\n", " ")
+                    sample_snip = (
+                        f'<div style="color: #94a3b8; font-style: italic; font-size: 0.76rem; margin-top: 0.15rem;">'
+                        f'e.g. ({html.escape(tr.matches[0].doc_title)}, p. {tr.matches[0].page_number}): "{safe_snip}"'
+                        f"</div>"
+                    )
+                else:
+                    sample_snip = ""
                 lex_items.append(
                     f"<li style='margin-bottom: 0.35rem;'>"
                     f"<b>'{html.escape(tr.term)}'</b>: {tr.total_occurrences} hit(s) across {tr.documents_count} doc(s)"
                     f"{sample_snip}</li>"
                 )
             evid_parts.append(
-                f"""
-                <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.8rem; margin-top: 0.4rem; font-size: 0.8rem; color: #cbd5e1;">
-                    <b style="color: #38bdf8;">Deterministic Lexical Concordance (Exact Hits):</b>
-                    <ul style="margin: 0.4rem 0 0 0; padding-left: 1.2rem;">
-                        {"".join(lex_items)}
-                    </ul>
-                </div>
-                """
+                '<div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.8rem; margin-top: 0.4rem; font-size: 0.8rem; color: #cbd5e1;">'
+                '<b style="color: #38bdf8;">Deterministic Lexical Concordance (Exact Hits):</b>'
+                f'<ul style="margin: 0.4rem 0 0 0; padding-left: 1.2rem;">{"".join(lex_items)}</ul>'
+                "</div>"
             )
 
     st.markdown(
-        f"""
-        <div class="column-panel">
-            <div>
-                <div class="column-header">EVIDENCE</div>
-                <div class="column-divider"></div>
-                {"".join(evid_parts)}
+        compact_html(
+            f"""
+            <div class="column-panel">
+                <div>
+                    <div class="column-header">EVIDENCE</div>
+                    <div class="column-divider"></div>
+                    {"".join(evid_parts)}
+                </div>
             </div>
-        </div>
-        """,
+            """
+        ),
         unsafe_allow_html=True,
     )
 
@@ -743,11 +776,9 @@ with col_limits:
 
     if not synth_res or not ret_res:
         limits_parts.append(
-            """
-            <div style="color: #64748b; font-size: 0.9rem; line-height: 1.6;">
-                Epistemic boundaries, conflicting source accounts, and absent information will appear here to expose the limits of the available evidence.
-            </div>
-            """
+            '<div style="color: #64748b; font-size: 0.9rem; line-height: 1.6;">'
+            "Epistemic boundaries, conflicting source accounts, and absent information will appear here to expose the limits of the available evidence."
+            "</div>"
         )
     else:
         # Divergent Perspectives / Conflicts
@@ -757,25 +788,19 @@ with col_limits:
             and "No overt contradictory" not in synth_res.divergent_perspectives
         ):
             limits_parts.append(
-                f"""
-                <div style="background-color: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; padding: 0.7rem 0.9rem; border-radius: 6px; margin-bottom: 1rem;">
-                    <b style="color: #f87171; font-size: 0.88rem;">&#9888;&#65039; Source Tensions / Competing Accounts:</b><br>
-                    <div style="color: #fca5a5; font-size: 0.85rem; line-height: 1.5; margin-top: 0.3rem;">
-                        {format_epistemic_html(synth_res.divergent_perspectives)}
-                    </div>
-                </div>
-                """
+                '<div style="background-color: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; padding: 0.7rem 0.9rem; border-radius: 6px; margin-bottom: 1rem;">'
+                '<b style="color: #f87171; font-size: 0.88rem;">&#9888;&#65039; Source Tensions / Competing Accounts:</b><br>'
+                f'<div style="color: #fca5a5; font-size: 0.85rem; line-height: 1.5; margin-top: 0.3rem;">{format_epistemic_html(synth_res.divergent_perspectives)}</div>'
+                "</div>"
             )
 
         # Epistemic Limitations & Gaps
         if synth_res.epistemic_limits:
             limits_parts.append(
-                f"""
-                <div style="color: #cbd5e1; font-size: 0.88rem; line-height: 1.5; margin-bottom: 1rem;">
-                    <b style="color: #94a3b8;">Evidentiary Boundaries:</b><br>
-                    {format_epistemic_html(synth_res.epistemic_limits)}
-                </div>
-                """
+                '<div style="color: #cbd5e1; font-size: 0.88rem; line-height: 1.5; margin-bottom: 1rem;">'
+                '<b style="color: #94a3b8;">Evidentiary Boundaries:</b><br>'
+                f"{format_epistemic_html(synth_res.epistemic_limits)}"
+                "</div>"
             )
 
         # Lexical Miss Report
@@ -787,29 +812,25 @@ with col_limits:
                 for m in misses
             )
             limits_parts.append(
-                f"""
-                <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.8rem; font-size: 0.82rem; color: #94a3b8;">
-                    <b style="color: #f59e0b;">Deterministic Search Limitations:</b>
-                    <ul style="margin: 0.3rem 0; padding-left: 1.2rem;">
-                        {miss_items}
-                    </ul>
-                    <span style="font-size: 0.75rem; color: #64748b;">
-                        (Note: Word misses indicate search boundaries, not definitive conceptual absence).
-                    </span>
-                </div>
-                """
+                '<div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.8rem; font-size: 0.82rem; color: #94a3b8;">'
+                '<b style="color: #f59e0b;">Deterministic Search Limitations:</b>'
+                f'<ul style="margin: 0.3rem 0; padding-left: 1.2rem;">{miss_items}</ul>'
+                '<span style="font-size: 0.75rem; color: #64748b;">(Note: Word misses indicate search boundaries, not definitive conceptual absence).</span>'
+                "</div>"
             )
 
     st.markdown(
-        f"""
-        <div class="column-panel">
-            <div>
-                <div class="column-header">WHAT THE CORPUS CANNOT ESTABLISH</div>
-                <div class="column-divider"></div>
-                {"".join(limits_parts)}
+        compact_html(
+            f"""
+            <div class="column-panel">
+                <div>
+                    <div class="column-header">WHAT THE CORPUS CANNOT ESTABLISH</div>
+                    <div class="column-divider"></div>
+                    {"".join(limits_parts)}
+                </div>
             </div>
-        </div>
-        """,
+            """
+        ),
         unsafe_allow_html=True,
     )
 
