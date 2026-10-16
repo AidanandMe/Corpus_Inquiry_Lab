@@ -1,0 +1,9 @@
+{
+  "corpus_id": "sample_archaeological_survey",
+  "embedding_model": "all-MiniLM-L6-v2 (ONNX)",
+  "embedding_dimension": 384,
+  "distance_metric": "cosine",
+  "chunks_indexed": 2,
+  "indexed_at": "2026-09-04T23:54:22.158764+00:00",
+  "methodological_notice": "Embeddings represent dense geometric vectors. Distance/similarity scores indicate spatial proximity within the vector space, not evidential certainty."
+}
